@@ -1,0 +1,145 @@
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+
+class SpeakerInfo(BaseModel):
+    identified_name: str
+    identification_source: str
+    role: str
+
+
+class SpeechData(BaseModel):
+    speaker_id: str
+    speaker_visible: bool
+    transcript: str = Field(description="Verbatim spoken words including um, uh, false starts")
+    language: str
+
+
+class FrameData(BaseModel):
+    shot_type: str = Field(description="ECU | CU | MCU | MS | MWS | WS | EWS | OTS | POV | Two-shot | Insert | B-roll | Screen-recording | [unclear]")
+    camera_angle: str = Field(description="eye-level | high-angle | low-angle | dutch | [unclear]")
+    camera_movement: str = Field(description="static | pan-left | pan-right | tilt-up | tilt-down | dolly-in | dolly-out | handheld | gimbal | zoom-in | zoom-out | rack-focus | [unclear]")
+    subjects_in_frame: list[str]
+    depth_of_field: str = Field(description="shallow | deep | [unclear]")
+
+
+class BackgroundData(BaseModel):
+    type: str = Field(description="plain-wall | bookshelf | home-office | outdoor | studio | green-screen | blurred | [unclear]")
+    description: str
+    elements_visible: list[str]
+
+
+class LightingData(BaseModel):
+    key_light_direction: str = Field(description="left | right | front | above | [unclear]")
+    light_quality: str = Field(description="soft | hard | mixed | [unclear]")
+    catch_light_in_eyes: bool
+    color_temperature_feel: str = Field(description="warm | cool | neutral | mixed | [unclear]")
+    notable: str
+
+
+class OnScreenTextEntry(BaseModel):
+    text: str = Field(description="Exact text as it appears on screen")
+    position: str = Field(description="top-left | top-center | top-right | center | bottom-left | bottom-center | bottom-right")
+    style: str
+    color: str
+    animation: str = Field(description="static | types-in | slides-in | fades-in | pops-in | [unclear]")
+    duration_on_screen_seconds: float
+
+
+class OnScreenTextData(BaseModel):
+    present: bool
+    entries: list[OnScreenTextEntry]
+
+
+class GraphicsEntry(BaseModel):
+    type: str = Field(description="lower-third | counter | progress-bar | arrow | circle | logo | chart | meme | reaction-image | b-roll-overlay | [describe]")
+    description: str
+    position: str
+    duration_seconds: float
+
+
+class GraphicsData(BaseModel):
+    present: bool
+    entries: list[GraphicsEntry]
+
+
+class CutEvent(BaseModel):
+    occurred: bool
+    type: str | None = Field(description="hard-cut | jump-cut | match-cut | J-cut | L-cut | smash-cut | dissolve | wipe | [unclear] | null if no cut")
+
+
+class EditingData(BaseModel):
+    cut_event: CutEvent
+    transition_effect: str = Field(description="none | whoosh | zoom-blur | spin | [describe] | [unclear]")
+    speed_change: str = Field(description="none | speed-ramp-up | speed-ramp-down | freeze-frame | [unclear]")
+
+
+class MusicData(BaseModel):
+    present: bool
+    tempo_feel: str = Field(description="slow | medium | fast | [unclear]")
+    genre_feel: str = Field(description="lo-fi | electronic | cinematic | upbeat-pop | ambient | dramatic | none | [unclear]")
+    volume_relative_to_speech: str = Field(description="background | equal | louder | no-speech | [unclear]")
+    notable_change: str = Field(description="drops | swells | cuts-out | new-track-starts | [none]")
+
+
+class SoundEffectEntry(BaseModel):
+    type: str = Field(description="whoosh | ding | notification | impact | record-scratch | applause | [describe]")
+    timecode: str
+
+
+class SoundEffectsData(BaseModel):
+    present: bool
+    entries: list[SoundEffectEntry]
+
+
+class AudioData(BaseModel):
+    music: MusicData
+    sound_effects: SoundEffectsData
+    ambient: str = Field(description="room-tone | outdoor | crowd | silence | [describe]")
+    audio_quality: str = Field(description="clean-studio | light-room-echo | heavy-reverb | background-noise | [unclear]")
+
+
+class ProductionObservables(BaseModel):
+    microphone_type_inferred: str = Field(description="lav | shotgun | dynamic-desk | condenser | built-in | [unclear]")
+    props_in_use: list[str]
+    wardrobe_notable: str
+    color_grade_feel: str = Field(description="warm | cool | neutral | high-contrast | desaturated | vibrant | [unclear]")
+
+
+class VideoSegment(BaseModel):
+    segment_id: int
+    timecode_start: str = Field(description="MM:SS format")
+    timecode_end: str = Field(description="MM:SS format")
+    duration_seconds: float
+    observable_summary: str = Field(description="One factual sentence describing what is physically happening in this segment")
+    speech: SpeechData
+    frame: FrameData
+    background: BackgroundData
+    lighting: LightingData
+    on_screen_text: OnScreenTextData
+    graphics_and_animations: GraphicsData
+    editing: EditingData
+    audio: AudioData
+    production_observables: ProductionObservables
+
+
+class TranscriptionPayload(BaseModel):
+    """The portion generated by the LLM. Document-level fields are filled by code from yt-dlp metadata."""
+    speakers: dict[str, SpeakerInfo]
+    segments: list[VideoSegment]
+
+
+class RichVideoTranscription(BaseModel):
+    """Complete Rich Video Transcription. Document-level fields filled programmatically; speakers+segments from LLM."""
+    video_id: str
+    source_url: str
+    platform: str
+    title: str
+    creator_name: str
+    upload_date: str
+    total_duration: str = Field(description="MM:SS format")
+    resolution: str
+    aspect_ratio: str
+    speakers: dict[str, SpeakerInfo]
+    segments: list[VideoSegment]
