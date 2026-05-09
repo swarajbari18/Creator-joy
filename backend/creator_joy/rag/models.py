@@ -39,7 +39,7 @@ class RAGSettings:
     embedding_model: str = "Qwen/Qwen3-Embedding-0.6B"
     sparse_model: str = "Qdrant/minicoil-v1"
     reranker_model: str = "Qwen/Qwen3-Reranker-0.6B"
-    embedding_dim: int = 4096
+    embedding_dim: int = 1024
     use_gpu: bool = True
     use_contextual_prefix: bool = False
     prefetch_k: int = 50

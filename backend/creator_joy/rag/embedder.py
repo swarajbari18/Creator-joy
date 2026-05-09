@@ -1,6 +1,6 @@
 import logging
 from sentence_transformers import SentenceTransformer
-from fastembed import TextEmbedding, SparseEmbedding
+from fastembed import TextEmbedding, SparseTextEmbedding, SparseEmbedding
 from creator_joy.transcription.schema import VideoSegment
 
 logger = logging.getLogger(__name__)
@@ -92,12 +92,12 @@ class DenseEmbedder:
 class SparseEmbedder:
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
-        self._model: TextEmbedding | None = None
+        self._model: SparseTextEmbedding | None = None
 
-    def _load(self) -> TextEmbedding:
+    def _load(self) -> SparseTextEmbedding:
         if self._model is None:
             logger.debug("Loading sparse embedding model %s", self.model_name)
-            self._model = TextEmbedding(self.model_name, model_type="sparse")
+            self._model = SparseTextEmbedding(self.model_name)
         return self._model
 
     def encode(self, texts: list[str]) -> list[SparseEmbedding]:

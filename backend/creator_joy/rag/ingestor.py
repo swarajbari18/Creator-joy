@@ -21,7 +21,7 @@ def _build_payload(seg: VideoSegment, transcription: RichVideoTranscription, pro
     return {
         # Identity
         "project_id":            project_id,
-        "video_id":              seg.video_id,
+        "video_id":              transcription.video_id,
         "segment_id":            seg.segment_id,
         "video_title":           transcription.title,
         "creator_name":          transcription.creator_name,
