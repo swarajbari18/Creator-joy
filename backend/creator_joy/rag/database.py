@@ -96,6 +96,26 @@ class RAGDatabase:
             )
             connection.commit()
 
+    def get_index_record_for_video(self, video_id: str) -> IndexRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM rag_index WHERE video_id = ? ORDER BY created_at DESC LIMIT 1",
+                (video_id,)
+            ).fetchone()
+            if not row:
+                return None
+            return IndexRecord(
+                id=row["id"],
+                video_id=row["video_id"],
+                project_id=row["project_id"],
+                status=IndexStatus(row["status"]),
+                segments_indexed=row["segments_indexed"],
+                qdrant_collection=row["qdrant_collection"],
+                error_message=row["error_message"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            )
+
     def get_index(self, record_id: str) -> IndexRecord | None:
         with self._connect() as connection:
             row = connection.execute(

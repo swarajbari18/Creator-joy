@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -79,6 +80,7 @@ class IngestionSettings:
     audio_quality: str = "192"
     ytdlp_quiet: bool = True
     ytdlp_no_warnings: bool = False
+    video_max_height: int = field(default_factory=lambda: int(os.environ.get("VIDEO_MAX_HEIGHT", "720")))
 
     @property
     def database_path(self) -> Path:

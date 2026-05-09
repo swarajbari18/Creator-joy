@@ -56,8 +56,9 @@ class VideoDownloader:
 
     def _download_video(self, url: str, output_dir: Path) -> dict[str, Any]:
         logger.debug("Starting merged video download url=%s", url)
+        h = self.settings.video_max_height
         options = self._base_options(output_dir) | {
-            "format": "bestvideo+bestaudio/best",
+            "format": f"bestvideo[height<={h}]+bestaudio/best[height<={h}]/best",
             "merge_output_format": self.settings.video_merge_format,
             "outtmpl": "source_video.%(ext)s",
             "progress_hooks": [self._progress_hook("video")],

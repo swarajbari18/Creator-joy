@@ -4,7 +4,7 @@ import { VideoCard } from './VideoCard'
 import { IngestionProgress } from './IngestionProgress'
 import { UrlInputBar } from './UrlInputBar'
 
-export function VideoSection({ projectId, videos, pendingIngestions, onAddVideo, onRetryIngestion }) {
+export function VideoSection({ projectId, videos, pendingIngestions, onAddVideo, onRetryIngestion, onRetryVideo }) {
   const [showInput, setShowInput] = useState(false)
 
   function handleSubmit(url, role) {
@@ -31,17 +31,24 @@ export function VideoSection({ projectId, videos, pendingIngestions, onAddVideo,
       )}
 
       <div className="overflow-y-auto flex-1 min-h-0 px-3 pb-3 space-y-4">
-        {pendingIngestions.map(p => (
-          <IngestionProgress
-            key={p.tempId}
-            url={p.url}
-            stage={p.stage}
-            error={p.error}
-            onRetry={p.error && onRetryIngestion ? () => onRetryIngestion(p.tempId) : null}
-          />
-        ))}
+        {pendingIngestions
+          .filter(p => !p.videoId || !videos.some(v => v.id === p.videoId))
+          .map(p => (
+            <IngestionProgress
+              key={p.tempId}
+              url={p.url}
+              stage={p.stage}
+              error={p.error}
+              onRetry={p.error && onRetryIngestion ? () => onRetryIngestion(p.tempId) : null}
+            />
+          ))}
         {videos.map(v => (
-          <VideoCard key={v.id} video={v} projectId={projectId} />
+          <VideoCard
+            key={v.id}
+            video={v}
+            projectId={projectId}
+            onRetry={onRetryVideo ? () => onRetryVideo(v.id) : null}
+          />
         ))}
         {videos.length === 0 && pendingIngestions.length === 0 && (
           <div className="text-center py-8 text-muted text-xs">

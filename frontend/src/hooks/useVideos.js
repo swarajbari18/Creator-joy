@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listVideos, ingestUrl, transcribeVideo, indexVideo } from '../api/videos'
+import { listVideos, ingestUrl, transcribeVideo, indexVideo, getVideoPipelineStatus } from '../api/videos'
 import { parseEngagement } from '../utils/parseEngagement'
 
 function parseVideo(v) {
@@ -109,5 +109,16 @@ export function useVideos(projectId) {
     setPendingIngestions(p => p.filter(x => x.tempId !== tempId))
   }, [projectId, pendingIngestions, load])
 
-  return { videos, pendingIngestions, loading, addVideo, retryIngestion, reload: load }
+  const retranscribeVideo = useCallback(async (videoId) => {
+    const status = await getVideoPipelineStatus(projectId, videoId)
+    if (status.transcription_status !== 'completed') {
+      await transcribeVideo(projectId, videoId)
+    }
+    if (status.rag_status !== 'completed') {
+      await indexVideo(projectId, videoId)
+    }
+    await load()
+  }, [projectId, load])
+
+  return { videos, pendingIngestions, loading, addVideo, retryIngestion, retranscribeVideo, reload: load }
 }

@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar'
 import { ChatArea } from './chat/ChatArea'
 
 export function WorkspaceLayout({ project }) {
-  const { videos, pendingIngestions, addVideo, retryIngestion } = useVideos(project.id)
+  const { videos, pendingIngestions, addVideo, retryIngestion, retranscribeVideo } = useVideos(project.id)
   const { sessions, activeSessionId, createSession, activateSession } = useSessions(project.id)
 
   return (
@@ -15,6 +15,7 @@ export function WorkspaceLayout({ project }) {
         pendingIngestions={pendingIngestions}
         onAddVideo={addVideo}
         onRetryIngestion={retryIngestion}
+        onRetryVideo={retranscribeVideo}
         sessions={sessions}
         activeSessionId={activeSessionId}
         onSelectSession={activateSession}

@@ -17,6 +17,12 @@ export async function ingestUrl(projectId, url, role) {
   return results[0]
 }
 
+export async function getVideoPipelineStatus(projectId, videoId) {
+  const res = await fetch(`${BASE}/projects/${projectId}/videos/${videoId}/pipeline-status`)
+  if (!res.ok) throw new Error('Failed to get pipeline status')
+  return res.json()
+}
+
 export async function transcribeVideo(projectId, videoId) {
   const res = await fetch(`${BASE}/projects/${projectId}/videos/${videoId}/transcribe`, {
     method: 'POST',
