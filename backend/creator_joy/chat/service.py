@@ -105,6 +105,9 @@ class ChatService:
         # 8. Stream events
         full_response = ""
         tool_calls_this_turn = []
+        # Count of active sub-agent tool calls; any LLM tokens emitted while
+        # this is > 0 belong to a sub-agent and must NOT reach the user.
+        skill_tool_depth = 0
 
         logger.info("Invoking orchestrator agent")
         try:
@@ -115,9 +118,38 @@ class ChatService:
                 event_type = event["event"]
 
                 if event_type == "on_custom_event":
-                    yield event["data"]
+                    # adispatch_custom_event("skill_start", {...}) emits:
+                    #   event["name"] = "skill_start"
+                    #   event["data"] = {"skill": ..., "message": ...}
+                    name = event.get("name", "")
+                    if name in ("skill_start", "skill_complete", "skill_error"):
+                        yield {"type": name, **event.get("data", {})}
+
+                elif event_type == "on_tool_start":
+                    if event["name"] == "use_sub_agent_with_skill":
+                        skill_tool_depth += 1
+                        tool_calls_this_turn.append(event["data"]["input"])
+
+                elif event_type == "on_tool_end":
+                    if event["name"] == "use_sub_agent_with_skill":
+                        skill_tool_depth = max(0, skill_tool_depth - 1)
+                        call_data = tool_calls_this_turn[-1] if tool_calls_this_turn else {}
+                        self.memory.save_turn(
+                            project_id, session_id, turn_number, "tool_call",
+                            json.dumps(call_data),
+                            skill_name=call_data.get("skill_name"),
+                        )
+                        self.memory.save_turn(
+                            project_id, session_id, turn_number, "tool_return",
+                            str(event["data"]["output"]),
+                        )
 
                 elif event_type == "on_chat_model_stream":
+                    # Only stream orchestrator tokens — suppress sub-agent LLM output.
+                    # LangGraph propagates child graph events up via contextvars,
+                    # so we gate on whether a skill tool is currently running.
+                    if skill_tool_depth > 0:
+                        continue
                     chunk = event["data"]["chunk"]
                     content = chunk.content
                     if isinstance(content, list):
@@ -130,6 +162,8 @@ class ChatService:
                         yield {"type": "token", "content": content}
 
                 elif event_type == "on_chat_model_end":
+                    if skill_tool_depth > 0:
+                        continue
                     if not full_response:
                         output = event["data"].get("output")
                         if output and not getattr(output, "tool_calls", None):
@@ -144,23 +178,6 @@ class ChatService:
                             if content:
                                 full_response = content
                                 yield {"type": "token", "content": content}
-
-                elif event_type == "on_tool_start":
-                    if event["name"] == "use_sub_agent_with_skill":
-                        tool_calls_this_turn.append(event["data"]["input"])
-
-                elif event_type == "on_tool_end":
-                    if event["name"] == "use_sub_agent_with_skill":
-                        call_data = tool_calls_this_turn[-1] if tool_calls_this_turn else {}
-                        self.memory.save_turn(
-                            project_id, session_id, turn_number, "tool_call",
-                            json.dumps(call_data),
-                            skill_name=call_data.get("skill_name"),
-                        )
-                        self.memory.save_turn(
-                            project_id, session_id, turn_number, "tool_return",
-                            str(event["data"]["output"]),
-                        )
 
         except Exception:
             logger.exception("Error in orchestrator stream project_id=%s session_id=%s", project_id, session_id)

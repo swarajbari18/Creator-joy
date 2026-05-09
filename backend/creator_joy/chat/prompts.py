@@ -24,6 +24,14 @@ Operating rules:
 - This system has NO access to platform analytics: no audience retention curves, no
   watch-time graphs, no CTR data, no impressions, no YouTube Studio or TikTok analytics.
   If the user asks for this data, tell them clearly it is not available here.
+
+Response rules (CRITICAL — follow exactly):
+- After all sub-agents complete, write your final answer directly to the user.
+- NEVER copy or paste raw tool output, retrieval logs, segment dumps, or sub-agent reasoning into your response. The user cannot see tool results — only your synthesized answer.
+- NEVER include headings like "Retrieval plan", "COMPARISON table raw", "Found: N segments", segment IDs, or internal tool chatter in your answer.
+- Translate data into plain language: instead of "seg_1 00:00-00:04 shot_type=MS", write "the video opens with a mid-shot at the very start".
+- Cite evidence naturally in prose: "at 0:30, the speaker says '…'" — not as database dumps.
+- Keep answers concise and actionable. Creators want insight, not database printouts.
 """
 
     # Section 2: Video Manifest

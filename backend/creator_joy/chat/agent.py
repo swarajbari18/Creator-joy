@@ -63,24 +63,23 @@ def make_skill_tool(project_id: str, video_ids: list[str]):
         Delegate a specific sub-task to a specialized skill sub-agent.
         """
         from creator_joy.chat.registry import SKILLS
-        from langgraph.config import get_stream_writer
-        
+        from langchain_core.callbacks import adispatch_custom_event
+
         if skill_name not in SKILLS:
             logger.warning("Sub-agent call with unknown skill: %s", skill_name)
             return f"Error: unknown skill '{skill_name}'. Available: {list(SKILLS.keys())}"
-        
+
         skill = SKILLS[skill_name]
         logger.info("Invoking sub-agent skill=%s", skill_name)
         logger.debug("Situational prompt: %s", situational_prompt)
-        
-        try:
-            stream_writer = get_stream_writer()
-        except Exception:
-            # Fallback if stream_writer is not available (e.g. non-streaming call)
-            stream_writer = lambda x: None
 
-        stream_writer({"type": "skill_start", "skill": skill_name,
-                       "message": f"Using {skill_name}..."})
+        # get_stream_writer() is broken for async tools (LangGraph bug #6447).
+        # adispatch_custom_event works correctly in async tools and emits
+        # on_custom_event in the parent's astream_events stream.
+        await adispatch_custom_event("skill_start", {
+            "skill": skill_name,
+            "message": f"Using {skill_name}...",
+        })
         
         context = SubAgentContext(
             project_id=project_id,
@@ -139,12 +138,12 @@ def make_skill_tool(project_id: str, video_ids: list[str]):
             
             output = result["messages"][-1].content
             logger.info("Sub-agent %s completed successfully", skill_name)
-            stream_writer({"type": "skill_complete", "skill": skill_name})
+            await adispatch_custom_event("skill_complete", {"skill": skill_name})
             return output
-        
+
         except Exception as e:
             logger.exception("Error in sub-agent %s", skill_name)
-            stream_writer({"type": "skill_error", "skill": skill_name, "error": str(e)})
+            await adispatch_custom_event("skill_error", {"skill": skill_name, "error": str(e)})
             return f"Skill '{skill_name}' encountered an error: {str(e)}"
     
     return use_sub_agent_with_skill
