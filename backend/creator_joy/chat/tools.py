@@ -133,9 +133,10 @@ def _format_search_result(result: Any, operation: str) -> str:
 
 def _sample_segments(rag: Any, project_id: str, video_ids: list[str], top_k: int, filters: Any) -> str:
     from creator_joy.ingestion.database import IngestionDatabase
-    from creator_joy.rag.models import RAGSettings, StructuralFilters
+    from creator_joy.ingestion.models import IngestionSettings
+    from creator_joy.rag.models import StructuralFilters
 
-    db = IngestionDatabase(RAGSettings().database_path)
+    db = IngestionDatabase(IngestionSettings().database_path)
     all_segments = []
 
     for v_id in video_ids:

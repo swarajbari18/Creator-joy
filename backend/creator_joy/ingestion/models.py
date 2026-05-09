@@ -72,7 +72,7 @@ class DownloadedArtifacts:
 
 @dataclass(frozen=True)
 class IngestionSettings:
-    storage_root: Path = Path("storage")
+    storage_root: Path = Path("downloads")
     database_filename: str = "creator_joy.sqlite3"
     video_merge_format: str = "mp4"
     audio_codec: str = "mp3"

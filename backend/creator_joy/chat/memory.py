@@ -80,6 +80,24 @@ class ChatMemory:
         history = [dict(row) for row in reversed(rows)]
         return history
 
+    def list_sessions(self, project_id: str) -> list[dict]:
+        """Return one entry per session with session_id, first user message, and last active time."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    session_id,
+                    MIN(CASE WHEN role = 'user' THEN content END) AS first_message,
+                    MAX(created_at) AS last_active
+                FROM chat_history
+                WHERE project_id = ?
+                GROUP BY session_id
+                ORDER BY last_active DESC
+                """,
+                (project_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     async def compact_if_needed(
         self,
         session_id: str,

@@ -2,11 +2,11 @@ import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from ..models import ChatRequest
-from creator_joy.rag.models import RAGSettings
+from creator_joy.ingestion.models import IngestionSettings
 
 router = APIRouter()
 
-DB_PATH = RAGSettings().database_path
+DB_PATH = IngestionSettings().database_path
 
 @router.post("/{project_id}/chat")
 async def chat_stream(project_id: str, request: ChatRequest):
@@ -30,6 +30,12 @@ async def chat_stream(project_id: str, request: ChatRequest):
             "Connection": "keep-alive",
         },
     )
+
+@router.get("/{project_id}/chat/sessions")
+async def list_sessions(project_id: str):
+    from creator_joy.chat.memory import ChatMemory
+    memory = ChatMemory(db_path=DB_PATH)
+    return memory.list_sessions(project_id)
 
 @router.get("/{project_id}/chat/sessions/{session_id}/history")
 async def get_chat_history(project_id: str, session_id: str):

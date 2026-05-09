@@ -5,6 +5,11 @@ from creator_joy.rag.models import RAGSettings
 
 router = APIRouter()
 
+@router.get("")
+async def list_projects():
+    db = IngestionDatabase(RAGSettings().database_path)
+    return db.list_projects()
+
 @router.post("")
 async def create_project(request: CreateProjectRequest):
     db = IngestionDatabase(RAGSettings().database_path)

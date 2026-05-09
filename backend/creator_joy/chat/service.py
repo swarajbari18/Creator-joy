@@ -5,7 +5,7 @@ from langchain_core.messages import HumanMessage
 from creator_joy.chat.memory import ChatMemory, build_message_history
 from creator_joy.chat.agent import create_orchestrator, _make_orchestrator_llm
 from creator_joy.ingestion.database import IngestionDatabase
-from creator_joy.rag.models import RAGSettings
+from creator_joy.ingestion.models import IngestionSettings
 from creator_joy.engagement.formatter import format_metrics_for_system_prompt
 from creator_joy.chat.prompts import build_orchestrator_system_prompt
 
@@ -16,7 +16,7 @@ class ChatService:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.memory = ChatMemory(db_path)
-        self.ingestion_db = IngestionDatabase(RAGSettings().database_path)
+        self.ingestion_db = IngestionDatabase(IngestionSettings().database_path)
 
     def _load_engagement_data(self, videos: list) -> list[dict]:
         """
