@@ -92,6 +92,12 @@ class VideoIngestionService:
 
         self._validate_required_artifacts(video.id, artifacts.video_paths, artifacts.audio_paths, video_dir)
         self.database.update_video_metadata(video.id, artifacts.metadata, metadata_path)
+        
+        # Engagement Metrics (from plan section 10)
+        from creator_joy.engagement import compute_all_engagement_metrics
+        engagement_metrics = compute_all_engagement_metrics(artifacts.metadata)
+        self.database.update_video_engagement(video.id, json.dumps(engagement_metrics))
+
         for path in artifacts.video_paths:
             self.database.add_video_file(video.id, VideoFileKind.VIDEO, path)
         for path in artifacts.audio_paths:

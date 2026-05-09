@@ -45,8 +45,10 @@ class VideoRecord:
     status: VideoStatus
     error_message: str | None
     metadata_path: str | None
-    created_at: str
-    updated_at: str
+    role: str | None = None
+    engagement_metrics: str | None = None
+    created_at: str = ""
+    updated_at: str = ""
 
 
 @dataclass(frozen=True)

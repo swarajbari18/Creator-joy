@@ -61,6 +61,8 @@ class IngestionDatabase:
                     status TEXT NOT NULL,
                     error_message TEXT,
                     metadata_path TEXT,
+                    role TEXT,
+                    engagement_metrics TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
@@ -79,6 +81,15 @@ class IngestionDatabase:
                 );
                 """
             )
+            # Migrate columns added after initial schema creation.
+            # ALTER TABLE ignores columns that already exist via the except below.
+            for col_def in ("role TEXT", "engagement_metrics TEXT"):
+                col_name = col_def.split()[0]
+                try:
+                    connection.execute(f"ALTER TABLE videos ADD COLUMN {col_def}")
+                    logger.debug("Migrated videos table: added column %s", col_name)
+                except Exception:
+                    pass  # column already present
 
     def create_project(self, name: str, description: str | None = None) -> ProjectRecord:
         project_id = str(uuid.uuid4())
@@ -251,6 +262,30 @@ class IngestionDatabase:
             raise RuntimeError(f"Video file was inserted but could not be loaded: {file_id}")
         return record
 
+    def update_video_engagement(self, video_id: str, engagement_metrics_json: str) -> None:
+        logger.debug("Updating engagement metrics video_id=%s", video_id)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE videos
+                SET engagement_metrics = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (engagement_metrics_json, utc_now(), video_id),
+            )
+
+    def update_video_role(self, video_id: str, role: str) -> None:
+        logger.debug("Updating video role video_id=%s role=%s", video_id, role)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE videos
+                SET role = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (role, utc_now(), video_id),
+            )
+
     def get_video(self, video_id: str) -> VideoRecord | None:
         with self._connect() as connection:
             row = connection.execute(
@@ -321,6 +356,8 @@ class IngestionDatabase:
             status=VideoStatus(row["status"]),
             error_message=row["error_message"],
             metadata_path=row["metadata_path"],
+            role=row["role"],
+            engagement_metrics=row["engagement_metrics"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

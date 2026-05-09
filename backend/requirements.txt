@@ -8,3 +8,7 @@ sentence-transformers
 fastembed
 torch
 numpy
+fastapi
+uvicorn
+langgraph
+langgraph-prebuilt

@@ -249,9 +249,6 @@ def search_segments(
       both set                    → Mode 3: hybrid (structural pre-filter, then semantic)
       both None                   → raises ValueError
     """
-    if nl_query is None and filters is None:
-        raise ValueError("At least one of nl_query or filters must be provided.")
-
     mode = (
         "structural" if nl_query is None
         else "semantic" if filters is None
