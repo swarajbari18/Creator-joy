@@ -105,65 +105,73 @@ class ChatService:
         # 8. Stream events
         full_response = ""
         tool_calls_this_turn = []
-        
-        logger.info("Invoking orchestrator agent")
-        async for event in orchestrator.astream_events(
-            {"messages": messages},
-            version="v2",
-        ):
-            event_type = event["event"]
-            
-            if event_type == "on_custom_event":
-                # Events from get_stream_writer() inside tools
-                data = event["data"]
-                yield data
-            
-            elif event_type == "on_chat_model_stream":
-                # Final synthesis tokens
-                chunk = event["data"]["chunk"]
-                # chunk.content might be empty if it's a tool call chunk
-                if chunk.content:
-                    full_response += chunk.content
-                    yield {"type": "token", "content": chunk.content}
-            
-            elif event_type == "on_chat_model_end":
-                # Fallback: capture complete response when streaming produced no tokens
-                if not full_response:
-                    output = event["data"].get("output")
-                    if output and not getattr(output, "tool_calls", None):
-                        content = output.content if isinstance(output.content, str) else ""
-                        if content:
-                            full_response = content
-                            yield {"type": "token", "content": content}
 
-            elif event_type == "on_tool_start":
-                if event["name"] == "use_sub_agent_with_skill":
-                    inputs = event["data"]["input"]
-                    tool_calls_this_turn.append(inputs)
-            
-            elif event_type == "on_tool_end":
-                if event["name"] == "use_sub_agent_with_skill":
-                    # Persist tool_call and tool_return to SQLite
-                    call_data = tool_calls_this_turn[-1] if tool_calls_this_turn else {}
-                    self.memory.save_turn(
-                        project_id, session_id, turn_number, "tool_call",
-                        json.dumps(call_data),
-                        skill_name=call_data.get("skill_name"),
-                    )
-                    self.memory.save_turn(
-                        project_id, session_id, turn_number, "tool_return",
-                        str(event["data"]["output"]),
-                    )
-        
-        # 9. Persist final synthesized response
-        if full_response:
-            self.memory.save_turn(
-                project_id, session_id, turn_number, "assistant", full_response
+        logger.info("Invoking orchestrator agent")
+        try:
+            async for event in orchestrator.astream_events(
+                {"messages": messages},
+                version="v2",
+            ):
+                event_type = event["event"]
+
+                if event_type == "on_custom_event":
+                    yield event["data"]
+
+                elif event_type == "on_chat_model_stream":
+                    chunk = event["data"]["chunk"]
+                    content = chunk.content
+                    if isinstance(content, list):
+                        content = "".join(
+                            block.get("text", "") if isinstance(block, dict) else ""
+                            for block in content
+                        )
+                    if content:
+                        full_response += content
+                        yield {"type": "token", "content": content}
+
+                elif event_type == "on_chat_model_end":
+                    if not full_response:
+                        output = event["data"].get("output")
+                        if output and not getattr(output, "tool_calls", None):
+                            content = output.content
+                            if isinstance(content, list):
+                                content = "".join(
+                                    block.get("text", "") if isinstance(block, dict) else ""
+                                    for block in content
+                                )
+                            elif not isinstance(content, str):
+                                content = ""
+                            if content:
+                                full_response = content
+                                yield {"type": "token", "content": content}
+
+                elif event_type == "on_tool_start":
+                    if event["name"] == "use_sub_agent_with_skill":
+                        tool_calls_this_turn.append(event["data"]["input"])
+
+                elif event_type == "on_tool_end":
+                    if event["name"] == "use_sub_agent_with_skill":
+                        call_data = tool_calls_this_turn[-1] if tool_calls_this_turn else {}
+                        self.memory.save_turn(
+                            project_id, session_id, turn_number, "tool_call",
+                            json.dumps(call_data),
+                            skill_name=call_data.get("skill_name"),
+                        )
+                        self.memory.save_turn(
+                            project_id, session_id, turn_number, "tool_return",
+                            str(event["data"]["output"]),
+                        )
+
+        except Exception:
+            logger.exception("Error in orchestrator stream project_id=%s session_id=%s", project_id, session_id)
+
+        finally:
+            # Always persist and signal done — even if the stream crashed mid-way
+            if full_response:
+                self.memory.save_turn(
+                    project_id, session_id, turn_number, "assistant", full_response
+                )
+            await self.memory.compact_if_needed(
+                session_id, threshold_turns=20, keep_recent=10, llm=_make_orchestrator_llm()
             )
-        
-        # 10. Compact memory if needed
-        await self.memory.compact_if_needed(
-            session_id, threshold_turns=20, keep_recent=10, llm=_make_orchestrator_llm()
-        )
-        
-        yield {"type": "done"}
+            yield {"type": "done"}

@@ -1,7 +1,9 @@
 import logging
 from sentence_transformers import CrossEncoder
+from creator_joy.rag._gpu_lock import gpu_inference_lock
 
 logger = logging.getLogger(__name__)
+
 
 class CrossEncoderReranker:
     def __init__(self, model_name: str, use_gpu: bool = True) -> None:
@@ -23,10 +25,10 @@ class CrossEncoderReranker:
         Each returned dict has an extra "_rerank_score" key.
         """
         model = self._load()
-        # Use transcript as the document text for reranking
         pairs = [(query, c.get("transcript", "") + " " + c.get("observable_summary", ""))
                  for c in candidates]
-        scores = model.predict(pairs)
+        with gpu_inference_lock:
+            scores = model.predict(pairs)
         for i, candidate in enumerate(candidates):
             candidate["_rerank_score"] = float(scores[i])
         ranked = sorted(candidates, key=lambda x: x["_rerank_score"], reverse=True)

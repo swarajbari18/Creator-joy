@@ -2,6 +2,7 @@ import logging
 from sentence_transformers import SentenceTransformer
 from fastembed import TextEmbedding, SparseTextEmbedding, SparseEmbedding
 from creator_joy.transcription.schema import VideoSegment
+from creator_joy.rag._gpu_lock import gpu_inference_lock
 
 logger = logging.getLogger(__name__)
 
@@ -80,13 +81,15 @@ class DenseEmbedder:
 
     def encode_query(self, text: str) -> list[float]:
         model = self._load()
-        vec = model.encode([text], prompt_name="query", normalize_embeddings=True)
+        with gpu_inference_lock:
+            vec = model.encode([text], prompt_name="query", normalize_embeddings=True)
         return vec[0].tolist()
 
     def encode_documents(self, texts: list[str]) -> list[list[float]]:
         model = self._load()
-        vecs = model.encode(texts, prompt_name="document", normalize_embeddings=True,
-                            batch_size=32, show_progress_bar=False)
+        with gpu_inference_lock:
+            vecs = model.encode(texts, prompt_name="document", normalize_embeddings=True,
+                                batch_size=32, show_progress_bar=False)
         return [v.tolist() for v in vecs]
 
 class SparseEmbedder:

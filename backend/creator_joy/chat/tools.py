@@ -6,6 +6,16 @@ from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import ToolRuntime
 
+_rag_service = None
+
+def get_rag_service():
+    global _rag_service
+    if _rag_service is None:
+        from creator_joy.rag import RAGService
+        from creator_joy.rag.models import RAGSettings
+        _rag_service = RAGService(RAGSettings())
+    return _rag_service
+
 
 @dataclass
 class SubAgentContext:
@@ -187,14 +197,13 @@ def search_segments(
     runtime: ToolRuntime = None,
 ) -> str:
     """Search video segments from the Qdrant vector database."""
-    from creator_joy.rag import RAGService, StructuralFilters
-    from creator_joy.rag.models import RAGSettings
+    from creator_joy.rag.models import StructuralFilters
 
     ctx: SubAgentContext = runtime.context
     project_id = ctx.project_id
     scoped_video_ids = [video_id] if video_id else ctx.video_ids
 
-    rag = RAGService(RAGSettings())
+    rag = get_rag_service()
 
     filters = None
     if any([shot_type, cut_type, speaker_visible is not None, music_present is not None,

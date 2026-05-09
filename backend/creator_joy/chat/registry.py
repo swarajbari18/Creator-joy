@@ -27,10 +27,9 @@ class Skill:
 
 async def _hook_prefetch(project_id: str, video_ids: list[str], situational_prompt: str) -> str:
     """Pre-fetch first 30 seconds for HookDiagnosis."""
-    from creator_joy.rag import RAGService, StructuralFilters
-    from creator_joy.rag.models import RAGSettings
-    from creator_joy.chat.tools import _format_search_result
-    rag = RAGService(RAGSettings())
+    from creator_joy.rag.models import StructuralFilters
+    from creator_joy.chat.tools import _format_search_result, get_rag_service
+    rag = get_rag_service()
     result = rag.search(
         project_id=project_id,
         video_ids=video_ids,
@@ -43,10 +42,9 @@ async def _hook_prefetch(project_id: str, video_ids: list[str], situational_prom
 
 async def _overlay_prefetch(project_id: str, video_ids: list[str], situational_prompt: str) -> str:
     """Pre-fetch all segments for OverlayAudit."""
-    from creator_joy.rag import RAGService, StructuralFilters
-    from creator_joy.rag.models import RAGSettings
-    from creator_joy.chat.tools import _format_search_result
-    rag = RAGService(RAGSettings())
+    from creator_joy.rag.models import StructuralFilters
+    from creator_joy.chat.tools import _format_search_result, get_rag_service
+    rag = get_rag_service()
     result = rag.search(
         project_id=project_id,
         video_ids=video_ids,
