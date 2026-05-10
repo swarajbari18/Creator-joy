@@ -153,10 +153,11 @@ Export all environment variables:
 export $(grep -v '^#' .env | xargs)
 ```
 
-Start Qdrant:
+Start Qdrant (with persistent storage so you don't lose your index on restart):
 
 ```bash
-sudo docker run -p 6333:6333 qdrant/qdrant:v1.17.1
+# This creates a 'qdrant_storage' folder in your current directory
+sudo docker run -p 6333:6333 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant:v1.17.1
 ```
 
 Start the backend:

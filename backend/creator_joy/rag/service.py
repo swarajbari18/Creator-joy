@@ -1,5 +1,5 @@
 import logging
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient, models
 
 from creator_joy.rag.models import RAGSettings, IndexRecord, IndexStatus, SearchResult, StructuralFilters
 from creator_joy.rag.database import RAGDatabase
@@ -60,8 +60,24 @@ class RAGService:
 
         try:
             count = self.ingestor.index_video(video_id)
+            
+            # Verify that points actually made it into Qdrant
+            qdrant_count = self.qdrant_client.count(
+                collection_name=self.settings.collection_name,
+                count_filter=models.Filter(
+                    must=[models.FieldCondition(key="video_id", match=models.MatchValue(value=video_id))]
+                )
+            ).count
+            
+            if qdrant_count == 0 and count > 0:
+                raise RuntimeError(
+                    f"Indexing reported {count} segments processed, but Qdrant collection "
+                    f"'{self.settings.collection_name}' still has 0 points for video {video_id}. "
+                    "Check if Qdrant is out of disk space or if the docker volume is read-only."
+                )
+
             self.rag_db.update_index_status(
-                record.id, IndexStatus.COMPLETED, segments_indexed=count
+                record.id, IndexStatus.COMPLETED, segments_indexed=qdrant_count
             )
         except Exception as exc:
             logger.exception("RAG indexing failed video_id=%s", video_id)
@@ -84,6 +100,22 @@ class RAGService:
         search_vector: str = "dense_transcript",
         top_k: int = 10,
     ) -> SearchResult:
+        # Before searching, verify that the requested videos actually have data in Qdrant
+        if video_ids:
+            for v_id in video_ids:
+                count = self.qdrant_client.count(
+                    collection_name=self.settings.collection_name,
+                    count_filter=models.Filter(
+                        must=[models.FieldCondition(key="video_id", match=models.MatchValue(value=v_id))]
+                    )
+                ).count
+                if count == 0:
+                    logger.warning(
+                        "SILENT FAILURE DETECTED: Video %s is requested for search but has 0 points in Qdrant collection '%s'. "
+                        "The index might have been lost (e.g. Docker restart without persistence).",
+                        v_id, self.settings.collection_name
+                    )
+
         return search_segments(
             project_id=project_id,
             video_ids=video_ids,
