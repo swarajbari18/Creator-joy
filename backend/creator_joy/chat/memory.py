@@ -25,7 +25,7 @@ class ChatMemory:
                     project_id  TEXT    NOT NULL,
                     session_id  TEXT    NOT NULL,
                     turn_number INTEGER NOT NULL,
-                    role        TEXT    NOT NULL CHECK(role IN ('user', 'assistant', 'tool_call', 'tool_return')),
+                    role        TEXT    NOT NULL CHECK(role IN ('user', 'assistant', 'tool_call', 'tool_return', 'thought')),
                     content     TEXT    NOT NULL,
                     skill_name  TEXT,   -- populated for tool_call rows only
                     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -58,27 +58,48 @@ class ChatMemory:
         session_id: str,
         max_turns: int = 15,
     ) -> list[dict]:
-        """
-        Return last max_turns turns as list of dicts with keys:
-        turn_number, role, content, skill_name.
-        Only returns 'user' and 'assistant' rows (not tool_call/tool_return) 
-        for LangChain message injection.
-        """
         with self._connect() as connection:
             rows = connection.execute(
                 """
-                SELECT turn_number, role, content, skill_name
+                SELECT id, turn_number, role, content, skill_name
                 FROM chat_history
-                WHERE session_id = ? AND role IN ('user', 'assistant')
+                WHERE session_id = ? AND role IN ('user', 'assistant', 'thought')
                 ORDER BY turn_number DESC, id DESC
                 LIMIT ?
                 """,
-                (session_id, max_turns * 2),  # max_turns is pairs of user/assistant
+                (session_id, max_turns * 20),
             ).fetchall()
         
-        # Reverse to get chronological order
-        history = [dict(row) for row in reversed(rows)]
-        return history
+        rows = [dict(row) for row in rows]
+        
+        # Group thoughts by turn_number and attach to the assistant message of that turn
+        # When loading history, we ignore 'active' statuses to prevent duplicates and ghost rollers.
+        history = []
+        turn_to_thoughts = {}
+        
+        for row in rows:
+            role = row["role"]
+            tn = row["turn_number"]
+            if role == "thought":
+                try:
+                    event = json.loads(row["content"])
+                    # Skip 'active' states in history - we only care about 'complete' or 'error'
+                    if event.get("status") == "active":
+                        continue
+                        
+                    if tn not in turn_to_thoughts: turn_to_thoughts[tn] = []
+                    turn_to_thoughts[tn].append(event)
+                except: pass
+            elif role in ("assistant", "user"):
+                history.append(row)
+
+        # Attach and reverse
+        for row in history:
+            if row["role"] == "assistant":
+                thoughts = turn_to_thoughts.get(row["turn_number"], [])
+                row["skillEvents"] = list(reversed(thoughts))
+
+        return list(reversed(history))
 
     def list_sessions(self, project_id: str) -> list[dict]:
         """Return one entry per session with session_id, first user message, and last active time."""
@@ -87,10 +108,10 @@ class ChatMemory:
                 """
                 SELECT
                     session_id,
-                    MIN(CASE WHEN role = 'user' THEN content END) AS first_message,
+                    MIN(content) AS first_message, -- Simplest way: MIN on turn_number=1 message
                     MAX(created_at) AS last_active
                 FROM chat_history
-                WHERE project_id = ?
+                WHERE project_id = ? AND turn_number = 1 AND role = 'user'
                 GROUP BY session_id
                 ORDER BY last_active DESC
                 """,

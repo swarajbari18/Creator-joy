@@ -17,7 +17,12 @@ export function useChat(projectId, sessionId) {
       return
     }
     getHistory(projectId, sessionId).then(history => {
-      setMessages(history.map(h => ({ id: uuid(), role: h.role, content: h.content })))
+      setMessages(history.map(h => ({ 
+        id: h.id || uuid(), 
+        role: h.role, 
+        content: h.content,
+        skillEvents: h.skillEvents 
+      })))
     })
   }, [projectId, sessionId])
 

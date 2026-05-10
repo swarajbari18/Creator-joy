@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { UserMessage } from './UserMessage'
 import { AiMessage } from './AiMessage'
-import { SkillActivityLog } from './SkillActivityLog'
+import { CollapsibleSkillLog } from './CollapsibleSkillLog'
 
 export function MessageThread({ messages, streaming, currentStreamText, skillLog }) {
   const bottomRef = useRef(null)
@@ -32,7 +32,7 @@ export function MessageThread({ messages, streaming, currentStreamText, skillLog
           ) : (
             <>
               {msg.skillEvents && msg.skillEvents.length > 0 && (
-                <SkillActivityLog skillLog={msg.skillEvents} />
+                <CollapsibleSkillLog skillLog={msg.skillEvents} />
               )}
               <AiMessage content={msg.content} />
             </>
@@ -42,7 +42,7 @@ export function MessageThread({ messages, streaming, currentStreamText, skillLog
 
       {streaming && (
         <div>
-          {skillLog.length > 0 && <SkillActivityLog skillLog={skillLog} />}
+          {skillLog.length > 0 && <CollapsibleSkillLog skillLog={skillLog} streaming={true} />}
           {currentStreamText && <AiMessage content={currentStreamText} streaming />}
         </div>
       )}

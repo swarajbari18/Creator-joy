@@ -119,13 +119,19 @@ class ChatService:
                 event_type = event["event"]
 
                 if event_type == "on_custom_event":
-                    # adispatch_custom_event("skill_start", {...}) emits:
-                    #   event["name"] = "skill_start"
-                    #   event["data"] = {"skill": ..., "message": ...}
                     name = event.get("name", "")
                     if name in ("skill_start", "skill_complete", "skill_error"):
-                        yield {"type": name, **event.get("data", {})}
-                        await asyncio.sleep(0.01)
+                        status = "active" if name == "skill_start" else ("complete" if name == "skill_complete" else "error")
+                        data = event.get("data", {})
+                        skill_name = data.get("skill")
+                        
+                        # Save thought to database for persistence on refresh
+                        self.memory.save_turn(
+                            project_id, session_id, turn_number, "thought",
+                            json.dumps({"skill": skill_name, "status": status})
+                        )
+                        
+                        yield {"type": name, **data}
                         await asyncio.sleep(0)
 
                 elif event_type == "on_tool_start":

@@ -11,22 +11,24 @@ export function useSessions(projectId) {
     const backend = await listSessions(projectId)
     const local = getSessions(projectId)
 
-    const merged = new Map()
-    local.forEach(s => merged.set(s.id, { ...s, first_message: null, last_active: s.created_at }))
-    backend.forEach(s => merged.set(s.session_id, {
+    // Only keep sessions that exist in the backend (Source of Truth)
+    const sorted = backend.map(s => ({
       id: s.session_id,
       label: s.first_message ? s.first_message.slice(0, 45) : 'New Chat',
       created_at: s.last_active,
       project_id: projectId,
       first_message: s.first_message,
       last_active: s.last_active,
-    }))
+    })).sort((a, b) => new Date(b.last_active) - new Date(a.last_active))
+    
+    // Also add the 'active' session if it's new and not yet in the backend
+    if (activeSessionId && !sorted.find(s => s.id === activeSessionId)) {
+      const activeLocal = local.find(l => l.id === activeSessionId)
+      if (activeLocal) sorted.unshift(activeLocal)
+    }
 
-    const sorted = Array.from(merged.values()).sort(
-      (a, b) => new Date(b.last_active) - new Date(a.last_active)
-    )
     setSessions(sorted)
-  }, [projectId])
+  }, [projectId, activeSessionId])
 
   useEffect(() => { load() }, [load])
 

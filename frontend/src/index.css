@@ -37,4 +37,42 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
   }
+
+  /* Markdown Styles for Chat Bubbles */
+  .prose-chat {
+    @apply text-sm leading-relaxed text-white;
+  }
+  .prose-chat table {
+    @apply w-full border-collapse my-3 text-xs;
+  }
+  .prose-chat th {
+    @apply border border-white/10 bg-white/5 px-3 py-2 text-left font-bold text-sky-400 uppercase tracking-wider;
+  }
+  .prose-chat td {
+    @apply border border-white/10 px-3 py-2;
+  }
+  .prose-chat tr:nth-child(even) {
+    @apply bg-white/5;
+  }
+  .prose-chat p {
+    @apply mb-2 last:mb-0;
+  }
+  .prose-chat ul, .prose-chat ol {
+    @apply ml-5 mb-3 space-y-1;
+  }
+  .prose-chat ul {
+    @apply list-disc;
+  }
+  .prose-chat ol {
+    @apply list-decimal;
+  }
+  .prose-chat strong {
+    @apply text-sky-400 font-bold;
+  }
+  .prose-chat blockquote {
+    @apply pl-4 border-l-2 border-sky-400/40 text-slate-400 italic my-2;
+  }
+  .prose-chat code {
+    @apply bg-slate-800/50 px-1.5 py-0.5 rounded font-mono text-[11px] text-sky-300;
+  }
 }
