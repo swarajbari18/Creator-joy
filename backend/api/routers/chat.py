@@ -1,4 +1,5 @@
 import json
+import asyncio
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from ..models import ChatRequest
@@ -19,7 +20,8 @@ async def chat_stream(project_id: str, request: ChatRequest):
             session_id=request.session_id,
             user_message=request.message,
         ):
-            yield f"data: {json.dumps(event)}\\n\\n"
+            yield f"data: {json.dumps(event)}\n\n"
+            await asyncio.sleep(0)
     
     return StreamingResponse(
         event_generator(),

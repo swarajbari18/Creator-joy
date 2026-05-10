@@ -156,7 +156,7 @@ export $(grep -v '^#' .env | xargs)
 Start Qdrant:
 
 ```bash
-docker run -p 6333:6333 qdrant/qdrant:v1.17.1
+sudo docker run -p 6333:6333 qdrant/qdrant:v1.17.1
 ```
 
 Start the backend:

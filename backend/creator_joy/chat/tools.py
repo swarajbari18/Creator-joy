@@ -103,41 +103,69 @@ def _format_search_result(result: Any, operation: str) -> str:
     if operation == "SUM_duration":
         return json.dumps({"total_duration_seconds": getattr(result, "sum_duration", 0)})
 
-    # FETCH or SAMPLE — pull extra fields from payload since SegmentResult
-    # only exposes top-level fields (shot_type, transcript, etc.); the rest live in payload.
+    # FETCH or SAMPLE — surface the full payload so skill agents have access
+    # to the complete data model for creative retrieval and analysis.
     segments = []
-    on_screen_text_timeline = []
-    shot_types: dict[str, int] = {}
 
     for s in getattr(result, "segments", []):
         p = s.payload if hasattr(s, "payload") and s.payload else {}
-        segments.append({
+        seg_data = {
+            # Identity & timecode
             "segment_id": s.segment_id,
+            "video_id": p.get("video_id"),
+            "video_title": p.get("video_title"),
             "timecode": f"{s.timecode_start}-{s.timecode_end}",
+            "duration_seconds": p.get("duration_seconds"),
+
+            # The single most useful field for understanding what happens
+            "observable_summary": s.observable_summary or p.get("observable_summary"),
+
+            # Speech
+            "transcript": s.transcript,
+            "speaker_id": p.get("speaker_id"),
+            "speaker_visible": p.get("speaker_visible"),
+
+            # Frame
             "shot_type": s.shot_type,
             "camera_angle": p.get("camera_angle"),
-            "transcript": s.transcript,
-            "on_screen_text": p.get("on_screen_text"),
+            "camera_movement": p.get("camera_movement"),
+            "depth_of_field": p.get("depth_of_field"),
+
+            # Background
+            "background_type": p.get("background_type"),
+
+            # Lighting
+            "key_light_direction": p.get("key_light_direction"),
+            "light_quality": p.get("light_quality"),
+            "color_temperature_feel": p.get("color_temperature_feel"),
+
+            # On-screen text
+            "on_screen_texts": p.get("on_screen_texts"),
+
+            # Graphics
+            "graphics_present": p.get("graphics_present"),
+
+            # Editing
             "cut_type": p.get("cut_type"),
+            "transition_effect": p.get("transition_effect"),
+
+            # Audio
             "music_present": p.get("music_present"),
+            "music_genre_feel": p.get("music_genre_feel"),
+            "music_tempo_feel": p.get("music_tempo_feel"),
             "audio_quality": p.get("audio_quality"),
             "microphone_type": p.get("microphone_type"),
-        })
-        shot_types[s.shot_type or "unknown"] = shot_types.get(s.shot_type or "unknown", 0) + 1
-        if p.get("on_screen_text"):
-            on_screen_text_timeline.append({
-                "segment_id": s.segment_id,
-                "timecode": s.timecode_start,
-                "text": p["on_screen_text"],
-            })
+
+            # Production
+            "color_grade_feel": p.get("color_grade_feel"),
+        }
+        # Strip None values to keep the JSON compact
+        seg_data = {k: v for k, v in seg_data.items() if v is not None}
+        segments.append(seg_data)
 
     return json.dumps({
         "result_count": len(segments),
         "segments": segments,
-        "aggregates": {
-            "shot_type_counts": shot_types,
-            "on_screen_text_timeline": on_screen_text_timeline,
-        },
     })
 
 

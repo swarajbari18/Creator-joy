@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 from typing import AsyncGenerator, Dict, Any
 from langchain_core.messages import HumanMessage
 from creator_joy.chat.memory import ChatMemory, build_message_history
@@ -70,15 +71,15 @@ class ChatService:
         Async generator yielding SSE event dicts.
         """
         logger.info("Starting chat stream project_id=%s session_id=%s", project_id, session_id)
-        
+
         # 1. Load video manifest for this project
         videos = self.ingestion_db.list_project_videos(project_id)
         video_ids = [v.id for v in videos]
         logger.debug("Loaded %s videos for project", len(video_ids))
-        
+
         # 2. Load engagement metrics (pre-computed in SQLite)
         engagement_data = self._load_engagement_data(videos)
-        
+
         # 3. Build system prompt
         engagement_block = format_metrics_for_system_prompt(engagement_data)
         system_prompt = build_orchestrator_system_prompt(
@@ -86,22 +87,22 @@ class ChatService:
             engagement_block=engagement_block,
         )
         logger.debug("System prompt built, length=%s", len(system_prompt))
-        
+
         # 4. Load conversation history
         history = self.memory.load_history(session_id, max_turns=15)
         history_messages = build_message_history(history)
         logger.debug("Loaded %s history messages", len(history_messages))
-        
+
         # 5. Persist user message
         turn_number = len(history) // 2 + 1
         self.memory.save_turn(project_id, session_id, turn_number, "user", user_message)
-        
+
         # 6. Create orchestrator for this session
         orchestrator = create_orchestrator(project_id, video_ids, system_prompt)
-        
+
         # 7. Build full message list for this invocation
         messages = history_messages + [HumanMessage(content=user_message)]
-        
+
         # 8. Stream events
         full_response = ""
         tool_calls_this_turn = []
@@ -124,6 +125,8 @@ class ChatService:
                     name = event.get("name", "")
                     if name in ("skill_start", "skill_complete", "skill_error"):
                         yield {"type": name, **event.get("data", {})}
+                        await asyncio.sleep(0.01)
+                        await asyncio.sleep(0)
 
                 elif event_type == "on_tool_start":
                     if event["name"] == "use_sub_agent_with_skill":
@@ -160,6 +163,7 @@ class ChatService:
                     if content:
                         full_response += content
                         yield {"type": "token", "content": content}
+                        await asyncio.sleep(0)
 
                 elif event_type == "on_chat_model_end":
                     if skill_tool_depth > 0:
@@ -178,6 +182,7 @@ class ChatService:
                             if content:
                                 full_response = content
                                 yield {"type": "token", "content": content}
+                                await asyncio.sleep(0)
 
         except Exception:
             logger.exception("Error in orchestrator stream project_id=%s session_id=%s", project_id, session_id)
@@ -192,3 +197,4 @@ class ChatService:
                 session_id, threshold_turns=20, keep_recent=10, llm=_make_orchestrator_llm()
             )
             yield {"type": "done"}
+            await asyncio.sleep(0)
